@@ -6,7 +6,7 @@ package ru.dmerkushov.dbhelper;
 
 /**
  *
- * @author shandr
+ * @author Dmitriy Merkushov
  */
 public class DbHelperException extends Exception {
 
