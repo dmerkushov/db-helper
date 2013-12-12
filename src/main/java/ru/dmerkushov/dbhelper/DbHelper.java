@@ -38,7 +38,7 @@ public class DbHelper {
 	}
 
 	/**
-	 * Performs a query to a DB, using SQL as a query
+	 * Perform a query to the database
 	 *
 	 * @param sql
 	 * @return
@@ -56,7 +56,7 @@ public class DbHelper {
 	}
 	
 	/**
-	 * Performs a query to the database
+	 * Perform a query to the database
 	 *
 	 * @param sql SQL code, where question marks (?) are placeholders for
 	 * parameters
@@ -84,7 +84,7 @@ public class DbHelper {
 		openDbConnection ();
 
 		if (dbConnection == null) {
-			throw new DbHelperException ("Database connection is null");
+			throw new DbHelperException ("Database connection");
 		}
 		if (sql == null) {
 			throw new DbHelperException ("SQL provided is null");
@@ -210,7 +210,7 @@ public class DbHelper {
 	}
 
     /**
-     * <p>Gets the value of the designated column in the first row
+     * <p>Get the value of the designated column in the first row
      * of the <code>ResultSet</code> object denoted by the query and parameters as
      * an <code>Object</code> in the Java programming language.
      *
@@ -267,7 +267,7 @@ public class DbHelper {
 	}
 
     /**
-     * <p>Gets the value of the designated column in the first row
+     * <p>Get the value of the designated column in the first row
      * of the <code>ResultSet</code> object denoted by the query and parameters as
      * an <code>Object</code> in the Java programming language.
      *
@@ -324,7 +324,7 @@ public class DbHelper {
 	}
 
 	/**
-	 * Performs an update to the database
+	 * Perform an update to the database
 	 *
 	 * @param sql SQL code, where question marks (?) are placeholders for
 	 * parameters
@@ -483,7 +483,6 @@ public class DbHelper {
 
 	/**
 	 * Create a DB connection
-	 * data
 	 *
 	 * @throws DbHelperException
 	 */
@@ -563,9 +562,18 @@ public class DbHelper {
 		loggerWrapper.exiting ();
 	}
 	
+	/**
+	 * Set the auto-commit state of the connection
+	 * @param autoCommit
+	 * @throws DbHelperException 
+	 */
 	public void setAutoCommit (boolean autoCommit) throws DbHelperException {
-		Object[] methodParams = {autoCommit};
-		loggerWrapper.entering (methodParams);
+		loggerWrapper.entering (autoCommit);
+		
+		if (dbConnection == null) {
+			throw new NullPointerException ("Database connection is null");
+		}
+		
 		try {
 			dbConnection.setAutoCommit (autoCommit);
 		} catch (SQLException ex) {
@@ -575,8 +583,17 @@ public class DbHelper {
 		loggerWrapper.exiting ();
 	}
 	
+	/**
+	 * Get the auto-commit state of the connection
+	 * @return
+	 * @throws DbHelperException 
+	 */
 	public boolean getAutoCommit () throws DbHelperException {
 		loggerWrapper.entering ();
+		
+		if (dbConnection == null) {
+			throw new NullPointerException ("Database connection is null");
+		}
 		
 		boolean autoCommit;
 		try {
@@ -589,9 +606,17 @@ public class DbHelper {
 		return autoCommit;
 	}
 	
+	/**
+	 * Commit the current transaction
+	 * @throws DbHelperException 
+	 */
 	public void commit () throws DbHelperException {
 		loggerWrapper.entering ();
 
+		if (dbConnection == null) {
+			throw new NullPointerException ("DB connection");
+		}
+		
 		try {
 			dbConnection.commit ();
 		} catch (SQLException ex) {
@@ -601,8 +626,16 @@ public class DbHelper {
 		loggerWrapper.exiting ();
 	}
 	
+	/**
+	 * Rollback the current transaction
+	 * @throws DbHelperException 
+	 */
 	public void rollback () throws DbHelperException {
 		loggerWrapper.entering ();
+		
+		if (dbConnection == null) {
+			throw new NullPointerException ("DB connection");
+		}
 		
 		try {
 			dbConnection.rollback ();
@@ -618,8 +651,10 @@ public class DbHelper {
 	 *
 	 * @throws DbHelperException
 	 */
-	public void releaseConnection () throws DbHelperException {
-		loggerWrapper.entering ();
+	public synchronized void releaseConnection () throws DbHelperException {
+		if (loggerWrapper != null) {
+			loggerWrapper.entering ();
+		}
 
 		if (dbConnection != null) {
 			try {
@@ -630,14 +665,14 @@ public class DbHelper {
 			dbConnection = null;
 		}
 
-		loggerWrapper.exiting ();
+		if (loggerWrapper != null) {
+			loggerWrapper.exiting ();
+		}
 	}
 
 	@Override
 	protected void finalize () throws Throwable {
 		super.finalize ();
-		loggerWrapper.entering ();
 		this.releaseConnection ();
-		loggerWrapper.exiting ();
 	}
 }

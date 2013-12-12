@@ -7,7 +7,7 @@
 	<packaging>jar</packaging>
 
 	<name>db-helper</name>
-	<description>A library to help manage databases without DAO</description>
+	<description>A lightweight library to help manage databases without DAO</description>
 	<url>http://dmerkushov.ru</url>
 
 	<parent>
