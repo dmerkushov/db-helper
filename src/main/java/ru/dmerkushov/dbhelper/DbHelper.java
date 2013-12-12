@@ -493,7 +493,7 @@ public class DbHelper {
 			throw new DbHelperException ("driverName supplied is null");
 		}
 		if (driverName.equals ("")) {
-			throw new DbHelperException ("driverName supplied is empty");
+			throw new DbHelperException ("driverName supplied is empty (not null)");
 		}
 
 		/**
@@ -570,9 +570,7 @@ public class DbHelper {
 	public void setAutoCommit (boolean autoCommit) throws DbHelperException {
 		loggerWrapper.entering (autoCommit);
 		
-		if (dbConnection == null) {
-			throw new NullPointerException ("Database connection is null");
-		}
+		openDbConnection ();
 		
 		try {
 			dbConnection.setAutoCommit (autoCommit);
@@ -591,9 +589,7 @@ public class DbHelper {
 	public boolean getAutoCommit () throws DbHelperException {
 		loggerWrapper.entering ();
 		
-		if (dbConnection == null) {
-			throw new NullPointerException ("Database connection is null");
-		}
+		openDbConnection ();
 		
 		boolean autoCommit;
 		try {
@@ -613,9 +609,7 @@ public class DbHelper {
 	public void commit () throws DbHelperException {
 		loggerWrapper.entering ();
 
-		if (dbConnection == null) {
-			throw new NullPointerException ("DB connection");
-		}
+		openDbConnection ();
 		
 		try {
 			dbConnection.commit ();
@@ -633,9 +627,7 @@ public class DbHelper {
 	public void rollback () throws DbHelperException {
 		loggerWrapper.entering ();
 		
-		if (dbConnection == null) {
-			throw new NullPointerException ("DB connection");
-		}
+		openDbConnection ();
 		
 		try {
 			dbConnection.rollback ();
