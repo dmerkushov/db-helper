@@ -246,7 +246,7 @@ public class DbHelper {
 		
 		boolean success;
 		try {
-			success = rs.first ();
+			success = rs.next ();
 		} catch (SQLException ex) {
 			throw new DbHelperException (ex);
 		}
@@ -303,7 +303,7 @@ public class DbHelper {
 		
 		boolean success;
 		try {
-			success = rs.first ();
+			success = rs.next ();
 		} catch (SQLException ex) {
 			throw new DbHelperException (ex);
 		}
@@ -320,6 +320,48 @@ public class DbHelper {
 		}
 		
 		loggerWrapper.exiting (result);
+		return result;
+	}
+	
+	/**
+	 * Perform a query with a single result checking its type
+	 * @param sql
+	 * @param sqlParams
+	 * @param columnIndex
+	 * @param clazz the class of which the result must be an instance, else an exception will be thrown
+	 * @return
+	 * @throws DbHelperException 
+	 */
+	public Object performDbQuerySingleResultCheckType (String sql, Object[] sqlParams, int columnIndex, Class clazz) throws DbHelperException {
+		loggerWrapper.entering (sql, sqlParams, columnIndex, clazz);
+		
+		Object result = performDbQuerySingleResult (sql, sqlParams, columnIndex);
+		
+		if (clazz.isInstance (result)) {
+			throw new DbHelperException ("Wrong result type: result is " + result.getClass ().getCanonicalName () + ", expected " + clazz.getCanonicalName ());
+		}
+		
+		return result;
+	}
+
+	/**
+	 * Perform a query with a single result checking its type
+	 * @param sql
+	 * @param sqlParams
+	 * @param columnLabel
+	 * @param clazz the class of which the result must be an instance, else an exception will be thrown
+	 * @return
+	 * @throws DbHelperException 
+	 */
+	public Object performDbQuerySingleResultCheckType (String sql, Object[] sqlParams, String columnLabel, Class clazz) throws DbHelperException {
+		loggerWrapper.entering (sql, sqlParams, columnLabel, clazz);
+		
+		Object result = performDbQuerySingleResult (sql, sqlParams, columnLabel);
+		
+		if (result != null && clazz.isInstance (result)) {
+			throw new DbHelperException ("Wrong result type: result is " + result.getClass ().getCanonicalName () + ", expected " + clazz.getCanonicalName ());
+		}
+		
 		return result;
 	}
 
