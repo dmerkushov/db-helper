@@ -337,7 +337,7 @@ public class DbHelper {
 		
 		Object result = performDbQuerySingleResult (sql, sqlParams, columnIndex);
 		
-		if (clazz.isInstance (result)) {
+		if (result != null && !clazz.isInstance (result)) {
 			throw new DbHelperException ("Wrong result type: result is " + result.getClass ().getCanonicalName () + ", expected " + clazz.getCanonicalName ());
 		}
 		
@@ -358,7 +358,7 @@ public class DbHelper {
 		
 		Object result = performDbQuerySingleResult (sql, sqlParams, columnLabel);
 		
-		if (result != null && clazz.isInstance (result)) {
+		if (result != null && !clazz.isInstance (result)) {
 			throw new DbHelperException ("Wrong result type: result is " + result.getClass ().getCanonicalName () + ", expected " + clazz.getCanonicalName ());
 		}
 		
