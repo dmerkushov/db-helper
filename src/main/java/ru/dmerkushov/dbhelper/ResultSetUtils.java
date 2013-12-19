@@ -48,8 +48,6 @@ public class ResultSetUtils {
 	 *     &lt;/record>
 	 * &lt;/recordset>
 	 * </pre>
-	 * <br/>
-	 * <b>EAPO note:</b> Not yet released in DbHelper, so put it here
 	 *
 	 * @param rs The ResultSet. The method will try to go it through, from the beginning to the end, but if the JDBC driver doesn't support {@link java.sql.ResultSet#beforeFirst() } method, or a SQLException happens, will begin at the next row after the current one
 	 * @return
