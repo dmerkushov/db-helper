@@ -3,7 +3,7 @@
 
 	<groupId>ru.dmerkushov</groupId>
 	<artifactId>db-helper</artifactId>
-	<version>1.7.0</version>
+	<version>1.7.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>db-helper</name>
@@ -32,7 +32,7 @@
 		<connection>scm:git:git@github.com:dmerkushov/db-helper.git</connection>
 		<developerConnection>scm:git:git@github.com:dmerkushov/db-helper.git</developerConnection>
 		<url>git@github.com:dmerkushov/db-helper.git</url>
-		<tag>db-helper-1.7.0</tag>
+		<tag>db-helper-1.5.0</tag>
 	</scm>
   
 	<developers>
