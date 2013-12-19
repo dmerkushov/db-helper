@@ -3,7 +3,7 @@
 
 	<groupId>ru.dmerkushov</groupId>
 	<artifactId>db-helper</artifactId>
-	<version>1.7.2-SNAPSHOT</version>
+	<version>1.7.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>db-helper</name>
