@@ -350,7 +350,7 @@ public class DbHelper {
 	 * @param sqlParams
 	 * @param columnIndex
 	 * @param clazz the class of which the result must be an instance, else an exception will be thrown
-	 * @return
+	 * @return an {@link java.lang.Object} that can be converted to the given class, or null if the query produced no result
 	 * @throws DbHelperException 
 	 */
 	public Object performDbQuerySingleResultCheckType (String sql, Object[] sqlParams, int columnIndex, Class clazz) throws DbHelperException {
@@ -371,7 +371,7 @@ public class DbHelper {
 	 * @param sqlParams
 	 * @param columnLabel
 	 * @param clazz the class of which the result must be an instance, else an exception will be thrown
-	 * @return
+	 * @return an {@link java.lang.Object} that can be converted to the given class, or null if the query produced no result
 	 * @throws DbHelperException 
 	 */
 	public Object performDbQuerySingleResultCheckType (String sql, Object[] sqlParams, String columnLabel, Class clazz) throws DbHelperException {
