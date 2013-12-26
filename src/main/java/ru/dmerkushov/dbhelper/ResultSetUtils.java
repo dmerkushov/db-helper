@@ -16,22 +16,21 @@
 
 package ru.dmerkushov.dbhelper;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import org.apache.xerces.dom.DocumentImpl;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
-import ru.dmerkushov.loghelper.LoggerWrapper;
 
 /**
  * Utility methods to use with ResultSets
  * @author Dmitriy Merkushov
  */
 public class ResultSetUtils {
-	
-	static LoggerWrapper loggerWrapper = LoggerWrapper.getLoggerWrapper ("DbHelper");
 
 
 	/**
@@ -48,13 +47,15 @@ public class ResultSetUtils {
 	 *     &lt;/record>
 	 * &lt;/recordset>
 	 * </pre>
+	 * <br/>
+	 * EAPO note: Not yet released in DbHelper, so put it here
 	 *
 	 * @param rs The ResultSet. The method will try to go it through, from the beginning to the end, but if the JDBC driver doesn't support {@link java.sql.ResultSet#beforeFirst() } method, or a SQLException happens, will begin at the next row after the current one
 	 * @return
 	 * @throws DbHelperException
 	 */
-	public static Document resultSetToDomDocument (ResultSet rs) throws DbHelperException {
-		loggerWrapper.entering (rs);
+	public static Document resultSetToDomDocument (ResultSet rs) throws DbHelperException, SQLException {
+		DbHelper.getLoggerWrapper ().entering (rs);
 
 		DocumentImpl document = new DocumentImpl ();
 
@@ -79,7 +80,7 @@ public class ResultSetUtils {
 		}
 
 		Node rootNode = document.createElement ("recordset");
-		document.adoptNode (rootNode);
+		document.appendChild (rootNode);
 
 		boolean hasNext;
 		try {
@@ -87,6 +88,8 @@ public class ResultSetUtils {
 		} catch (SQLException ex) {
 			throw new DbHelperException (ex);
 		}
+
+		SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
 		while (hasNext) {
 			Node recordNode = document.createElement ("record");
@@ -112,12 +115,60 @@ public class ResultSetUtils {
 				}
 				columnNode.getAttributes ().setNamedItem (columnType);
 				Object columnValue;
-				try {
-					columnValue = rs.getObject (columnIndex);
-				} catch (SQLException ex) {
-					throw new DbHelperException ("Column " + columnIndex, ex);
+				String columnValueString;
+
+				switch (rsMeta.getColumnType (columnIndex)) {
+					case java.sql.Types.CHAR:
+					case java.sql.Types.VARCHAR:
+					case java.sql.Types.LONGVARCHAR:
+						columnValueString = rs.getString (columnIndex);
+						break;
+					case java.sql.Types.NCHAR:
+					case java.sql.Types.NVARCHAR:
+					case java.sql.Types.LONGNVARCHAR:
+						columnValueString = rs.getNString (columnIndex);
+						break;
+					case java.sql.Types.BIGINT:
+					case java.sql.Types.INTEGER:
+					case java.sql.Types.SMALLINT:
+					case java.sql.Types.TINYINT:
+						columnValueString = String.valueOf (rs.getLong (columnIndex));
+						break;
+					case java.sql.Types.DECIMAL:
+					case java.sql.Types.NUMERIC:
+						columnValue = rs.getBigDecimal (columnIndex);
+						columnValueString = (columnValue != null ? ((BigDecimal) columnValue).toString () : null);
+						break;
+					case java.sql.Types.DOUBLE:
+						columnValueString = String.valueOf (rs.getDouble (columnIndex));
+						break;
+					case java.sql.Types.FLOAT:
+					case java.sql.Types.REAL:
+						columnValueString = String.valueOf (rs.getFloat (columnIndex));
+						break;
+					case java.sql.Types.BOOLEAN:
+						columnValueString = String.valueOf (rs.getBoolean (columnIndex));
+						break;
+					case java.sql.Types.DATE:
+						columnValue = rs.getDate (columnIndex);
+						columnValueString = (columnValue != null ? sdf.format ((java.sql.Date) columnValue) : null);
+						break;
+					case java.sql.Types.TIME:
+						columnValue = rs.getTime (columnIndex);
+						columnValueString = (columnValue != null ? sdf.format ((java.sql.Time) columnValue) : null);
+						break;
+					case java.sql.Types.TIMESTAMP:
+						columnValue = rs.getTimestamp (columnIndex);
+						columnValueString = (columnValue != null ? sdf.format ((java.sql.Timestamp) columnValue) : null);
+						break;
+					default:
+						DbHelper.getLoggerWrapper ().warning ("Unknown type of column " + columnIndex + ": " + rsMeta.getColumnTypeName (columnIndex) + ". Will set the value to null in the DOM document.");
+						columnValueString = null;
+						break;
 				}
-				columnNode.setTextContent (columnValue.toString ());
+				if (columnValueString != null) {
+					columnNode.setTextContent (columnValueString);
+				}
 			}
 
 			try {
@@ -127,7 +178,7 @@ public class ResultSetUtils {
 			}
 		}
 
-		loggerWrapper.exiting (document);
+		DbHelper.getLoggerWrapper ().exiting (document);
 		return document;
 	}
 }
