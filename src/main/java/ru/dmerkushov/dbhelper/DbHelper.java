@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 dmerkushov.
+ * Copyright 2013-2014 dmerkushov.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,12 @@
  */
 package ru.dmerkushov.dbhelper;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,17 +51,18 @@ public class DbHelper {
 
 		getLoggerWrapper ().exiting ();
 	}
-	
+
 	/**
 	 * Get the {@link LoggerWrapper} instance for DbHelper
-	 * @return 
+	 *
+	 * @return
 	 */
 	public static LoggerWrapper getLoggerWrapper () {
 		if (loggerWrapper == null) {
 			loggerWrapper = LoggerWrapper.getLoggerWrapper ("ru.dmerkushov.dbhelper.DbHelper");
 			loggerWrapper.configureByDefaultDailyRolling ("log/DbHelper_%d_%u.log");
 		}
-		
+
 		return loggerWrapper;
 	}
 
@@ -413,11 +419,12 @@ public class DbHelper {
 
 	/**
 	 * Perform a query and get a single column as a list
+	 *
 	 * @param sql
 	 * @param sqlParams
 	 * @param columnLabel
 	 * @return List of results, or an empty list (not null) when there were no results
-	 * @throws ru.dmerkushov.dbhelper.DbHelperException 
+	 * @throws ru.dmerkushov.dbhelper.DbHelperException
 	 */
 	public List<Object> performDbQueryList (String sql, Object[] sqlParams, String columnLabel) throws DbHelperException {
 		getLoggerWrapper ().entering (sql, sqlParams, columnLabel);
@@ -452,11 +459,12 @@ public class DbHelper {
 
 	/**
 	 * Perform a query and get a single column as a list
+	 *
 	 * @param sql
 	 * @param sqlParams
 	 * @param columnIndex the first column is 1, the second is 2, ...
 	 * @return List of results, or an empty list (not null) when there were no results
-	 * @throws ru.dmerkushov.dbhelper.DbHelperException 
+	 * @throws ru.dmerkushov.dbhelper.DbHelperException
 	 */
 	public List<Object> performDbQueryList (String sql, Object[] sqlParams, int columnIndex) throws DbHelperException {
 		getLoggerWrapper ().entering (sql, sqlParams, columnIndex);
@@ -528,8 +536,6 @@ public class DbHelper {
 		PreparedStatement ps = null;
 
 		openDbConnection ();
-
-		this.performDbUpdate (sql, sqlParams[0], sqlParams[2]);
 
 		if (dbConnection == null) {
 			throw new DbHelperException ("Database connection is null");
@@ -706,20 +712,27 @@ public class DbHelper {
 		}
 
 		/**
-		 * A flag to indicate whether really do open a new connection
+		 * A flag to indicate whether we really need to open a new connection
 		 */
 		boolean doOpenDbConnection = false;
 
 		if (dbConnection == null) {
 			doOpenDbConnection = true;
 		} else {
-			/*
-			 * try { if (!dbConnection.isValid (10)) { doOpenDbConnection =
-			 * true; } } catch (SQLException ex) { throw new DbHelperException
-			 * ("Received a SQLException when trying to check whether the
-			 * connection is valid.", ex);
-			 * }
-			 */
+			boolean connIsValid;
+			try {
+				connIsValid = dbConnection.isValid (0);
+			} catch (SQLException ex) {
+				throw new DbHelperException (ex);
+			}
+			if (!connIsValid) {
+				try {
+					dbConnection.close ();
+				} catch (SQLException ex) {
+					throw new DbHelperException (ex);
+				}
+				doOpenDbConnection = true;
+			}
 		}
 
 		if (doOpenDbConnection) {
@@ -731,7 +744,7 @@ public class DbHelper {
 				throw new DbHelperException ("Received a ClassNotFoundException when trying to initialize a class for the database driver: " + driverName, ex);
 			}
 
-			getLoggerWrapper ().info ("Found class for driver name: " + driverName);
+			getLoggerWrapper ().finer ("Found class for driver name: " + driverName);
 
 			try {
 				dbConnection = DriverManager.getConnection (connectionUrl);
@@ -739,7 +752,7 @@ public class DbHelper {
 				throw new DbHelperException ("Received a SQLException when trying to get a connection.", ex);
 			}
 
-			getLoggerWrapper ().info ("Got a connection from the driver");
+			getLoggerWrapper ().finer ("Got a connection from the driver");
 
 			try {
 				dbConnection.setAutoCommit (true);
