@@ -24,6 +24,8 @@ import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import ru.dmerkushov.loghelper.LoggerWrapper;
 
 /**
@@ -695,14 +697,27 @@ public class DbHelper {
 
 		return toReturn;
 	}
+	
+	/**
+	 * Create a DB connection, NOT forcing the re-creation if it is considered OK
+	 * @throws DbHelperException 
+	 */
+	public void openDbConnection () throws DbHelperException {
+		getLoggerWrapper ().entering ();
+		
+		openDbConnection (false);
+		
+		getLoggerWrapper ().exiting ();
+	}
 
 	/**
 	 * Create a DB connection
 	 *
+	 * @param forceRecreation Whether to force re-creation if it is considered OK
 	 * @throws ru.dmerkushov.dbhelper.DbHelperException
 	 */
-	public void openDbConnection () throws DbHelperException {
-		getLoggerWrapper ().entering ();
+	public void openDbConnection (boolean forceRecreation) throws DbHelperException {
+		getLoggerWrapper ().entering (forceRecreation);
 
 		if (driverName == null) {
 			throw new DbHelperException ("driverName supplied is null");
@@ -714,28 +729,42 @@ public class DbHelper {
 		/**
 		 * A flag to indicate whether we really need to open a new connection
 		 */
-		boolean doOpenDbConnection = false;
+		boolean needOpenDbConnection = forceRecreation;
 
 		if (dbConnection == null) {
-			doOpenDbConnection = true;
+			needOpenDbConnection = true;
 		} else {
-			boolean connIsValid;
 			try {
-				connIsValid = dbConnection.isValid (0);
+				needOpenDbConnection = needOpenDbConnection || (dbConnection.isClosed () && !dbConnection.isValid (0));
 			} catch (SQLException ex) {
-				throw new DbHelperException (ex);
-			}
-			if (!connIsValid) {
+				// isValid is not supported by some ancient JDBC drivers, so we shall perform some additional checks
 				try {
-					dbConnection.close ();
+					needOpenDbConnection = needOpenDbConnection || dbConnection.isClosed ();
+					if (!needOpenDbConnection) {
+						// Trying to set autocommit mode several times.
+						// It's not a universal measure of connection validity
+						// (the driver can store the value on the client side, for example),
+						// but just something we can do
+						boolean autoCommit = dbConnection.getAutoCommit ();
+						dbConnection.setAutoCommit (false);
+						dbConnection.setAutoCommit (true);
+						dbConnection.setAutoCommit (autoCommit);
+						needOpenDbConnection = needOpenDbConnection || false;
+					}
+				} catch (SQLException ex1) {
+					needOpenDbConnection = true;
+				}
+			}
+			if (needOpenDbConnection) {
+				try {
+					dbConnection.close ();	// If the connection is closed, nothing will happen; if opened, should close it first before re-opening
 				} catch (SQLException ex) {
 					throw new DbHelperException (ex);
 				}
-				doOpenDbConnection = true;
 			}
 		}
 
-		if (doOpenDbConnection) {
+		if (needOpenDbConnection) {
 			getLoggerWrapper ().info ("Need to open a connection");
 
 			try {
