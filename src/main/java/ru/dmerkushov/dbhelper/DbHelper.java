@@ -24,8 +24,6 @@ import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import ru.dmerkushov.loghelper.LoggerWrapper;
 
 /**
@@ -55,7 +53,7 @@ public class DbHelper {
 	}
 
 	/**
-	 * Get the {@link LoggerWrapper} instance for DbHelper
+	 * Get the {@link ru.dmerkushov.loghelper.LoggerWrapper LoggerWrapper} instance
 	 *
 	 * @return
 	 */
@@ -66,6 +64,19 @@ public class DbHelper {
 		}
 
 		return loggerWrapper;
+	}
+	
+	/**
+	 * Set the {@link ru.dmerkushov.loghelper.LoggerWrapper LoggerWrapper} instance
+	 * @param loggerWrapper must not be null
+	 * @throws NullPointerException if loggerWrapper parameter is null
+	 */
+	public static void setLoggerWrapper (LoggerWrapper loggerWrapper) throws NullPointerException {
+		if (loggerWrapper == null) {
+			throw new NullPointerException ("loggerWrapper");
+		}
+		
+		DbHelper.loggerWrapper = loggerWrapper;
 	}
 
 	/**
@@ -381,7 +392,7 @@ public class DbHelper {
 	 * @param columnIndex the first column is 1, the second is 2, ...
 	 * @param clazz the class of which the result must be an instance, else an exception will be thrown
 	 * @return an {@link java.lang.Object} that can be converted to the given class, or null if the query produced no result
-	 * @throws ru.dmerkushov.dbhelper.DbHelperException 1. Any underlying exception<br/>
+	 * @throws ru.dmerkushov.dbhelper.DbHelperException 1. Any underlying exception<br>
 	 * 2. When the result is not an instance of the class specified, the message will begin with: "Wrong result type", and after that the specification of the result type and what was expected
 	 */
 	public Object performDbQuerySingleResultCheckType (String sql, Object[] sqlParams, int columnIndex, Class clazz) throws DbHelperException {
@@ -404,7 +415,7 @@ public class DbHelper {
 	 * @param columnLabel
 	 * @param clazz the class of which the result must be an instance, else an exception will be thrown
 	 * @return an {@link java.lang.Object} that can be converted to the given class, or null if the query produced no result
-	 * @throws ru.dmerkushov.dbhelper.DbHelperException 1. Any underlying exception<br/>
+	 * @throws ru.dmerkushov.dbhelper.DbHelperException 1. Any underlying exception<br>
 	 * 2. When the result is not an instance of the class specified, the message will begin with: "Wrong result type", and after that the specification of the result type and what was expected
 	 */
 	public Object performDbQuerySingleResultCheckType (String sql, Object[] sqlParams, String columnLabel, Class clazz) throws DbHelperException {

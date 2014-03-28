@@ -34,23 +34,24 @@ public class ResultSetUtils {
 
 
 	/**
-	 * Put the contents of a ResultSet to a DOM document. Does not save the position in the ResultSet.<br/>
-	 * <br/>
-	 * The DOM output is a one like the following XML represents:<br/>
+	 * Put the contents of a ResultSet to a DOM document. Does not save the position in the ResultSet.<br>
+	 * <br>
+	 * The DOM output is a one like the following XML represents:<br>
 	 * <pre>
-	 * &lt;?xml version="1.0" encoding="UTF-8"?>
-	 * &lt;recordset>
-	 *     &lt;record>
-	 *         &lt;column name="field_name_1" type="BIGINT UNSIGNED">1&lt;/column>
-	 *         &lt;column name="field_name_2" type="CHAR">Olala&lt;/column>
-	 *         &lt;column name="field_name_3" type="TIMESTAMP">2013-12-19 21:07:02.0&lt;/column>
-	 *     &lt;/record>
-	 * &lt;/recordset>
+	 * &lt;?xml version="1.0" encoding="UTF-8"?&gt;
+	 * &lt;recordset&gt;
+	 *     &lt;record&gt;
+	 *         &lt;column name="field_name_1" type="BIGINT UNSIGNED"&gt;1&lt;/column&gt;
+	 *         &lt;column name="field_name_2" type="CHAR"&gt;Olala&lt;/column&gt;
+	 *         &lt;column name="field_name_3" type="TIMESTAMP"&gt;2013-12-19 21:07:02.0&lt;/column&gt;
+	 *     &lt;/record&gt;
+	 * &lt;/recordset&gt;
 	 * </pre>
 	 *
 	 * @param rs The ResultSet. The method will try to go it through, from the beginning to the end, but if the JDBC driver doesn't support {@link java.sql.ResultSet#beforeFirst() } method, or a SQLException happens, will begin at the next row after the current one
 	 * @return
 	 * @throws DbHelperException
+	 * @throws java.sql.SQLException
 	 */
 	public static Document resultSetToDomDocument (ResultSet rs) throws DbHelperException, SQLException {
 		DbHelper.getLoggerWrapper ().entering (rs);
