@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2014 dmerkushov.
+ * Copyright 2013-2017 dmerkushov.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,16 +53,14 @@ public class DbHelper {
 	 * @param connectionUrl
 	 */
 	public DbHelper (String driverName, String connectionUrl) {
-		loggerWrapper.entering (driverName, connectionUrl);
-
-		this.driverName = driverName;
-		this.connectionUrl = connectionUrl;
-
-		loggerWrapper.exiting ();
+		this (driverName, connectionUrl, null, null);
 	}
 
 	public DbHelper (String driverName, String connectionUrl, String username, String password) {
-		loggerWrapper.entering (driverName, connectionUrl);
+		loggerWrapper.entering (driverName, connectionUrl, username, password);
+
+		Objects.requireNonNull (driverName, "driverName");
+		Objects.requireNonNull (connectionUrl, "connectionUrl");
 
 		this.driverName = driverName;
 		this.connectionUrl = connectionUrl;
@@ -95,7 +93,8 @@ public class DbHelper {
 	 * @param sql SQL code, where question marks (?) are placeholders for
 	 * parameters
 	 * @param sqlParams Query parameters. Supported types are:
-	 * {@link String}, {@link Boolean}, {@link Long}, {@link Integer}, {@link Double}, {@link Float}, {@link java.sql.Time}, {@link java.sql.Timestamp}, {@link java.sql.Date}
+	 * {@link String}, {@link Boolean}, {@link Long}, {@link Integer}, {@link Double}, {@link Float}, {@link java.sql.Time}, {@link java.sql.Timestamp}, {@link java.sql.Date},
+	 * byte[]
 	 * @return
 	 * @throws ru.dmerkushov.dbhelper.DbHelperException
 	 * @throws java.lang.IllegalArgumentException If one or more of the params
@@ -103,171 +102,24 @@ public class DbHelper {
 	 */
 	public ResultSet performDbQuery (String sql, Object[] sqlParams) throws DbHelperException {
 		Objects.requireNonNull (sql, "sql");
-		if (sql == null) {
-			throw new DbHelperException ("SQL provided is null");
+		if (sql.equals ("")) {
+			throw new IllegalArgumentException ("SQL provided is empty");
 		}
 
 		loggerWrapper.entering (sql, sqlParams);
 
 		ResultSet toReturn = null;
-		PreparedStatement ps = null;
+		PreparedStatement ps;
+		try {
+			ps = prepareStatement (sql, sqlParams);
+		} catch (DbHelperException ex) {
+			throw new DbHelperException ("Received a DbHelperException when trying to prepare statement for SQL: \"" + sql + "\".", ex);
+		}
 
-		openDbConnection ();
-
-		Objects.requireNonNull (dbConnection, "dbConnection");
-
-		if (dbConnection != null) {
-			loggerWrapper.info ("Preparing a statement for SQL: \"" + sql + "\"");
-			try {
-				ps = dbConnection.prepareStatement (sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-			} catch (SQLException ex) {
-				throw new DbHelperException ("Received a SQLException when trying to prepare statement for SQL: \"" + sql + "\".", ex);
-			}
-
-			loggerWrapper.info ("PreparedStatement for SQL: \"" + sql + "\" prepared");
-
-			try {
-				if (sqlParams != null) {
-
-					loggerWrapper.info ("Running through parameters for SQL: \"" + sql + "\"");
-
-					for (int paramIndex = 0; paramIndex < sqlParams.length; paramIndex++) {
-						Object param = sqlParams[paramIndex];
-
-						if (param == null) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is null");
-							try {
-								ps.setObject (paramIndex + 1, null);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a null parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.String) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a String: " + (String) param);
-							try {
-								ps.setString (paramIndex + 1, (String) param);					// i+1, because the first parameter for PreparedStatement.setX() functions is #1
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a String parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Boolean) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Boolean: " + String.valueOf (param));
-
-							try {
-								if (ps.getConnection ().getMetaData ().getDriverName ().contains ("Informix")) {	// Informix JDBC driver has no direct support for setBoolean()
-									loggerWrapper.info ("Database type is Informix, must use strings \"T\"/\"F\" for boolean");
-									ps.setString (paramIndex + 1, (Boolean) param ? "t" : "f");
-								} else {
-									ps.setBoolean (paramIndex + 1, (Boolean) param);
-								}
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Boolean parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Long) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Long: " + String.valueOf (param));
-
-							try {
-								ps.setLong (paramIndex + 1, (Long) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Long parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Integer) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is an Integer: " + String.valueOf (param));
-
-							try {
-								ps.setInt (paramIndex + 1, (Integer) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set an Integer parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Double) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Double: " + String.valueOf (param));
-
-							try {
-								ps.setDouble (paramIndex + 1, (Double) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Double parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Float) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Float: " + String.valueOf (param));
-
-							try {
-								ps.setFloat (paramIndex + 1, (Float) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Float parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.sql.Timestamp) {
-
-							SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Timestamp: " + sdf.format ((java.sql.Timestamp) param));
-
-							try {
-								ps.setTimestamp (paramIndex + 1, (java.sql.Timestamp) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.sql.Time) {
-
-							SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Time: " + sdf.format ((java.sql.Time) param));
-
-							try {
-								ps.setTime (paramIndex + 1, (java.sql.Time) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.sql.Date) {
-
-							SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Date: " + sdf.format ((java.sql.Date) param));
-
-							try {
-								ps.setDate (paramIndex + 1, (java.sql.Date) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof byte[]) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a byte array");
-
-							try {
-								ps.setBytes (paramIndex + 1, (byte[]) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a byte array parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else {
-							IllegalArgumentException iae = new IllegalArgumentException ("Illegal class of parameter #" + String.valueOf (paramIndex).trim () + ": " + (param != null ? param.getClass ().getName () : "null") + ".\n SQL is \"" + sql + "\".\n Supported classes are: String, Boolean, Long, Integer, Double, Float, and java.sql.Date");
-							throw iae;
-						}
-					}
-				}
-
-				loggerWrapper.info ("Executing query for SQL: \"" + sql + "\"");
-
-				try {
-					toReturn = ps.executeQuery ();
-				} catch (SQLException ex) {
-					throw new DbHelperException ("Received a SQLException when trying to execute query for SQL: \"" + sql + "\".", ex);
-				}
-
-			} finally {
-			}
-
+		try {
+			toReturn = ps.executeQuery ();
+		} catch (SQLException ex) {
+			throw new DbHelperException ("Received a SQLException when trying to execute query for SQL: \"" + sql + "\".", ex);
 		}
 
 		loggerWrapper.exiting (toReturn);
@@ -564,170 +416,23 @@ public class DbHelper {
 	public int performDbUpdate (String sql, Object... sqlParams) throws DbHelperException {
 		Objects.requireNonNull (sql, "sql");
 		if (sql.equals ("")) {
-			throw new DbHelperException ("SQL provided is empty");
+			throw new IllegalArgumentException ("SQL provided is empty");
 		}
 
 		loggerWrapper.entering (sql, sqlParams);
 
 		Integer toReturn = null;
-		PreparedStatement ps = null;
+		PreparedStatement ps;
+		try {
+			ps = prepareStatement (sql, sqlParams);
+		} catch (DbHelperException ex) {
+			throw new DbHelperException ("Received a DbHelperException when trying to prepare statement for SQL: \"" + sql + "\".", ex);
+		}
 
-		openDbConnection ();
-
-		Objects.requireNonNull (dbConnection, "dbConnection");
-
-		if (dbConnection != null) {
-			loggerWrapper.info ("Preparing a statement for SQL: \"" + sql + "\"");
-			try {
-				ps = dbConnection.prepareStatement (sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-			} catch (SQLException ex) {
-				throw new DbHelperException ("Received a SQLException when trying to prepare statement for SQL: \"" + sql + "\".", ex);
-			}
-
-			loggerWrapper.info ("PreparedStatement for SQL: \"" + sql + "\" prepared");
-
-			try {
-				if (sqlParams != null) {
-
-					loggerWrapper.info ("Running through parameters for SQL: \"" + sql + "\"");
-
-					for (int paramIndex = 0; paramIndex < sqlParams.length; paramIndex++) {
-						Object param = sqlParams[paramIndex];
-
-						if (param == null) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a null");
-							try {
-								ps.setObject (paramIndex + 1, null);					// i+1, because the first parameter for PreparedStatement.setX() functions is #1
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a String parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.String) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a String: " + (String) param);
-							try {
-								ps.setString (paramIndex + 1, (String) param);					// i+1, because the first parameter for PreparedStatement.setX() functions is #1
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a String parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Boolean) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Boolean: " + String.valueOf (param));
-
-							try {
-								if (ps.getConnection ().getMetaData ().getDriverName ().contains ("Informix")) {	// Informix JDBC driver has no direct support for setBoolean()
-									loggerWrapper.info ("Database type is Informix, must use strings \"T\"/\"F\" for boolean");
-									ps.setString (paramIndex + 1, (Boolean) param ? "t" : "f");
-								} else {
-									ps.setBoolean (paramIndex + 1, (Boolean) param);
-								}
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Boolean parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Long) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Long: " + String.valueOf (param));
-
-							try {
-								ps.setLong (paramIndex + 1, (Long) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Long parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Integer) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is an Integer: " + String.valueOf (param));
-
-							try {
-								ps.setInt (paramIndex + 1, (Integer) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set an Integer parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Double) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Double: " + String.valueOf (param));
-
-							try {
-								ps.setDouble (paramIndex + 1, (Double) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Double parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.lang.Float) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Float: " + String.valueOf (param));
-
-							try {
-								ps.setFloat (paramIndex + 1, (Float) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a Float parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.sql.Timestamp) {
-
-							SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Timestamp: " + sdf.format ((java.sql.Timestamp) param));
-
-							try {
-								ps.setTimestamp (paramIndex + 1, (java.sql.Timestamp) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.sql.Time) {
-
-							SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Time: " + sdf.format ((java.sql.Time) param));
-
-							try {
-								ps.setTime (paramIndex + 1, (java.sql.Time) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof java.sql.Date) {
-
-							SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Date: " + sdf.format ((java.sql.Date) param));
-
-							try {
-								ps.setDate (paramIndex + 1, (java.sql.Date) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else if (param instanceof byte[]) {
-
-							loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a byte array");
-
-							try {
-								ps.setBytes (paramIndex + 1, (byte[]) param);
-							} catch (SQLException ex) {
-								throw new DbHelperException ("Received a SQLException when trying to set a byte array parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
-							}
-
-						} else {
-							IllegalArgumentException iae = new IllegalArgumentException ("Illegal class of parameter #" + String.valueOf (paramIndex).trim () + ": " + (param != null ? param.getClass ().getName () : "null") + ".\n SQL is \"" + sql + "\".\n Supported classes are: String, Boolean, Long, Integer, Double, Float, java.sql.Date, java.sql.Time, and java.sql.Timestamp");
-							throw iae;
-						}
-					}
-				}
-
-				loggerWrapper.info ("Executing update for SQL: \"" + sql + "\"");
-
-				try {
-					toReturn = ps.executeUpdate ();
-				} catch (SQLException ex) {
-					throw new DbHelperException ("Received a SQLException when trying to execute query for SQL: \"" + sql + "\".", ex);
-				}
-
-			} finally {
-			}
-
+		try {
+			toReturn = ps.executeUpdate ();
+		} catch (SQLException ex) {
+			throw new DbHelperException ("Received a SQLException when trying to execute query for SQL: \"" + sql + "\".", ex);
 		}
 
 		loggerWrapper.exiting (toReturn);
@@ -975,4 +680,148 @@ public class DbHelper {
 		super.finalize ();
 		this.releaseConnection ();
 	}
+
+	private PreparedStatement prepareStatement (String sql, Object[] sqlParams) throws DbHelperException {
+		openDbConnection ();
+
+		if (dbConnection == null) {
+			throw new DbHelperException ("Could not open a database connection");
+		}
+
+		PreparedStatement ps;
+		try {
+			ps = dbConnection.prepareStatement (sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+		} catch (SQLException ex) {
+			throw new DbHelperException (ex);
+		}
+
+		if (sqlParams != null) {
+			for (int paramIndex = 0; paramIndex < sqlParams.length; paramIndex++) {
+				Object param = sqlParams[paramIndex];
+				if (param == null) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is null");
+					try {
+						ps.setObject (paramIndex + 1, null);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a null parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.lang.String) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a String: " + (String) param);
+					try {
+						ps.setString (paramIndex + 1, (String) param);					// i+1, because the first parameter for PreparedStatement.setX() functions is #1
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a String parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.lang.Boolean) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Boolean: " + String.valueOf (param));
+
+					try {
+						if (ps.getConnection ().getMetaData ().getDriverName ().contains ("Informix")) {	// Informix JDBC driver has no direct support for setBoolean()
+							loggerWrapper.info ("Database type is Informix, must use strings \"T\"/\"F\" for boolean");
+							ps.setString (paramIndex + 1, (Boolean) param ? "t" : "f");
+						} else {
+							ps.setBoolean (paramIndex + 1, (Boolean) param);
+						}
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a Boolean parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.lang.Long) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Long: " + String.valueOf (param));
+
+					try {
+						ps.setLong (paramIndex + 1, (Long) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a Long parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.lang.Integer) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is an Integer: " + String.valueOf (param));
+
+					try {
+						ps.setInt (paramIndex + 1, (Integer) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set an Integer parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.lang.Double) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Double: " + String.valueOf (param));
+
+					try {
+						ps.setDouble (paramIndex + 1, (Double) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a Double parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.lang.Float) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a Float: " + String.valueOf (param));
+
+					try {
+						ps.setFloat (paramIndex + 1, (Float) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a Float parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.sql.Timestamp) {
+
+					SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Timestamp: " + sdf.format ((java.sql.Timestamp) param));
+
+					try {
+						ps.setTimestamp (paramIndex + 1, (java.sql.Timestamp) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.sql.Time) {
+
+					SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Time: " + sdf.format ((java.sql.Time) param));
+
+					try {
+						ps.setTime (paramIndex + 1, (java.sql.Time) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof java.sql.Date) {
+
+					SimpleDateFormat sdf = new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a java.sql.Date: " + sdf.format ((java.sql.Date) param));
+
+					try {
+						ps.setDate (paramIndex + 1, (java.sql.Date) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a java.sql.Date parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else if (param instanceof byte[]) {
+
+					loggerWrapper.info ("Parameter for SQL: \"" + sql + "\" #" + String.valueOf (paramIndex).trim () + " is a byte array");
+
+					try {
+						ps.setBytes (paramIndex + 1, (byte[]) param);
+					} catch (SQLException ex) {
+						throw new DbHelperException ("Received a SQLException when trying to set a byte array parameter #" + String.valueOf (paramIndex).trim () + " for SQL: \"" + sql + "\".", ex);
+					}
+
+				} else {
+					IllegalArgumentException iae = new IllegalArgumentException ("Illegal class of parameter #" + String.valueOf (paramIndex).trim () + ": " + (param != null ? param.getClass ().getName () : "null") + ".\n SQL is \"" + sql + "\".\n Supported classes are: String, Boolean, Long, Integer, Double, Float, and java.sql.Date");
+					throw iae;
+				}
+			}
+		}
+
+		return ps;
+	}
+
 }

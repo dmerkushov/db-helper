@@ -3,7 +3,7 @@
 
 	<groupId>ru.dmerkushov</groupId>
 	<artifactId>db-helper</artifactId>
-	<version>1.12.0</version>
+	<version>1.12.1</version>
 	<packaging>jar</packaging>
 
 	<name>db-helper</name>
@@ -106,6 +106,89 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.7.9</version>
+				<configuration>
+					<destFile>${basedir}/target/coverage-reports/jacoco-unit.exec</destFile>
+					<dataFile>${basedir}/target/coverage-reports/jacoco-unit.exec</dataFile>
+				</configuration>
+				<executions>
+					<execution>
+						<id>jacoco-initialize</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-site</id>
+						<phase>package</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>findbugs-maven-plugin</artifactId>
+				<version>3.0.4</version>
+				<configuration>
+					<xmlOutput>true</xmlOutput>
+					<effort>Max</effort>
+					<threshold>Low</threshold>
+					<failOnError>true</failOnError>
+					<onlyAnalyze>ru.cniiag.f753.training.lps.db.*,ru.cniiag.f753.training.lps.db.keepers.*</onlyAnalyze>
+				</configuration>
+				<executions>
+					<execution>
+						<id>findbugs</id>
+						<phase>verify</phase>
+						<goals>
+							<!--<goal>findbugs</goal>-->
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jxr-plugin</artifactId>
+				<version>2.5</version>
+				<executions>
+					<execution>
+						<id>jxr</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>jxr</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.7</version>
+				<configuration>
+					<linkXRef>true</linkXRef>
+					<sourceEncoding>utf-8</sourceEncoding>
+					<targetJdk>1.8</targetJdk>
+					<excludes>
+						<exclude>**/ru/cniiag/f753/training/lps/db/dao/*.java</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<id>pmd</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>pmd</goal>
+							<goal>cpd</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
