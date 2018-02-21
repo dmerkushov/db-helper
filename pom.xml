@@ -79,7 +79,6 @@
 					<effort>Max</effort>
 					<threshold>Low</threshold>
 					<failOnError>true</failOnError>
-					<onlyAnalyze>ru.cniiag.f753.training.lps.db.*,ru.cniiag.f753.training.lps.db.keepers.*</onlyAnalyze>
 				</configuration>
 				<executions>
 					<execution>
@@ -114,9 +113,6 @@
 					<linkXRef>true</linkXRef>
 					<sourceEncoding>utf-8</sourceEncoding>
 					<targetJdk>1.8</targetJdk>
-					<excludes>
-						<exclude>**/ru/cniiag/f753/training/lps/db/dao/*.java</exclude>
-					</excludes>
 				</configuration>
 				<executions>
 					<execution>
